@@ -12,20 +12,44 @@
 
 using namespace std;
 
-//Given a word and a board, sees if it exists and returns start position
-int checkWord(string word, char board[16]);
+//Object that specifies where a word is located on the board
+class wordPos{
+public:
+    int startPos;
+    string word;
+    int position[16];
+    wordPos();
+    
+    void operator=(const wordPos &rhs){
+        startPos = rhs.startPos;
+        word = rhs.word;
+        for(int i=0;i<16;i++)
+            position[i] = rhs.position[i];
+    }
+};
+wordPos::wordPos(void){
+    startPos=-1;
+    word=" ";
+    for(int i=0;i<16;i++)
+        position[i]=0;
+}
+
+//Given a word and a board, sees if it exists and returns wordPos
+wordPos checkWord(string word, char board[16]);
 //Helper function to check each letter in the word
 int checkLetter(string word, char board[16], int searched[16], int letter, int position);
-//Gets the (no bonus) score for the words
+//Gets the (no bonus) score for a word
 int getScore(string word);
 
 int main(int argc, char** argv) {
     
     //Variables
-    string line;
-    string wordArray[172820]=" ";
-    char gameBoard[16]=" ";
-    int valid = 0;
+    string line; //Generic string input
+    string wordArray[172820]=" "; //Stores the ENABLE list
+    char gameBoard[16]=" "; //Stores the board
+    int valid = 0; //Generic bool
+    wordPos found; //Stores found words
+    int words = 0; //Number of words found so far
     
     //Store the ENABLE word list into an array
     ifstream wordList ("enable1.txt");
@@ -52,41 +76,36 @@ int main(int argc, char** argv) {
     for(int i=0;i<16;i++)
         gameBoard[i] = line[i];
     
-    //Check all ENABLE words, print results
+    //Check all ENABLE words, add then to foundWords
     for(int i=0;i<172820;i++){
         line = wordArray[i];
-        valid = checkWord(line,gameBoard);
-        if(valid!=-1&&getScore(line)>=10){
-            if(valid<10)
-                cout << valid << "  " << line << endl;
-            else
-                cout << valid << " " << line << endl;
-        }
+        found = checkWord(line,gameBoard);
+        if(found.startPos!=-1)
+            cout << found.word << endl;
     }
-    
     return 0;
 }
 
-int checkWord(string word, char board[16]){
+wordPos checkWord(string word, char board[16]){
     //Variables
-    int searched[16] = {0}; //Which squares are already part of the word
+    int searched[16] = {0}; //Tracks location of the word
     int startPos = 0; //Starting position of the word
-    int foundPos = -1; //-1 if not found, otherwise location of start of word
+    wordPos found;
     int check = 0;
     
-    while(startPos<16 && check==0){  
+    while(startPos<16 && !check){  
         if(board[startPos]==word[0]){
             check = checkLetter(word, board, searched, 0, startPos);
-            if(check==1)
-                foundPos = startPos;
+            if(check){
+                found.startPos = startPos;
+                for(int i=0;i<16;i++)
+                    found.position[i] = searched[i];
+                found.word = word;
+            }
         }
         startPos++;
     }
-    
-    if(check==1)
-        return foundPos;
-    
-    return -1;
+    return found;
 }
 
 int checkLetter(string word, char board[16], int searched[16], int letter, int position){
@@ -98,7 +117,7 @@ int checkLetter(string word, char board[16], int searched[16], int letter, int p
     int col = position%4;
     
     //This position is now part of the word
-    searched[position]=1;
+    searched[position]=letter+1;
     
     if(letter==word.size()-1)
         found=1;

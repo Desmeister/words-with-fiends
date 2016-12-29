@@ -5,10 +5,14 @@
  * Created on December 25, 2016, 5:08 PM
  */
 
+//This somehow helps windows.h import correctly, do not remove
+#define _WIN32_WINNT 0x0500
+
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <windows.h>
 
 using namespace std;
 
@@ -50,6 +54,8 @@ int main(int argc, char** argv) {
     int valid = 0; //Generic bool
     wordPos found; //Stores found words
     int words = 0; //Number of words found so far
+    int score = 0; //Total score, used for board resets
+    int boardNumber = 0; //Which number board we are on
     
     //Store the ENABLE word list into an array
     ifstream wordList ("enable1.txt");
@@ -65,6 +71,8 @@ int main(int argc, char** argv) {
         cout << "Unable to open file." << endl;
     
     //Get input and initialize the board state
+    cout << "Board Number?" << endl;
+    cin >> boardNumber;
     cout << "Input Board State:" << endl;
     while(!valid){
         cin >> line;
@@ -76,13 +84,64 @@ int main(int argc, char** argv) {
     for(int i=0;i<16;i++)
         gameBoard[i] = line[i];
     
-    //Check all ENABLE words, add then to foundWords
+    //Check all ENABLE words, draw them on the board
     for(int i=0;i<172820;i++){
+        //Variables for word checking
         line = wordArray[i];
         found = checkWord(line,gameBoard);
-        if(found.startPos!=-1)
+        
+        //Variables for automated word entering
+        int xPos[16];
+        int yPos[16];
+        int wordPos, row, col;
+        INPUT input;
+        
+        if(found.startPos!=-1){
             cout << found.word << endl;
+        
+            //Convert the wordPos to a series of mouse coordinates
+            for(int j=0;j<16;j++){
+                wordPos = found.position[j];
+                row = j/4;
+                col = j%4;
+                if(wordPos!=0){
+                    xPos[found.position[j]-1] = 11050+3600*col;
+                    yPos[found.position[j]-1] = 30500+6450*row;
+                }
+            }
+
+            //Draw the word on the board
+            for(int k=0;k<found.word.size();k++){
+                input.type=INPUT_MOUSE;
+                input.mi.dx=xPos[k];
+                input.mi.dy=yPos[k];
+                if(k==0)
+                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTDOWN);
+                else if(k==found.word.size()-1)
+                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTUP);
+                else
+                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE);
+                input.mi.mouseData=0;
+                input.mi.dwExtraInfo=NULL;
+                input.mi.time=0;
+                SendInput(1,&input,sizeof(INPUT));
+                
+                Sleep(50);
+            }
+            
+            //Add the word's score to the tally: Board resets at about 500
+            score = score+getScore(found.word);
+        }
+        
+        //If the board has reset, stop
+        if(boardNumber==1)
+            if(score>=600)
+                break;
+        if(boardNumber==2)
+            if(score>=1800)
+                break;
     }
+    
     return 0;
 }
 
@@ -116,8 +175,8 @@ int checkLetter(string word, char board[16], int searched[16], int letter, int p
     int row = position/4;
     int col = position%4;
     
-    //This position is now part of the word
-    searched[position]=letter+1;
+    //This position is now searched (17 used as placeholder)
+    searched[position]=17;
     
     if(letter==word.size()-1)
         found=1;
@@ -147,6 +206,10 @@ int checkLetter(string word, char board[16], int searched[16], int letter, int p
             if(board[position+1]==word[letter+1]&&searched[position+1]==0)
                 found = checkLetter(word,board,searched,letter+1,position+1);
     }
+    
+    //If we found the word, add this position to it
+    if(found)
+        searched[position]=letter+1;
     
     return found;
 }

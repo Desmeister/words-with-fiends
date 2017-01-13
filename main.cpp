@@ -53,9 +53,8 @@ int main(int argc, char** argv) {
     char gameBoard[16]=" "; //Stores the board
     int valid = 0; //Generic bool
     wordPos found; //Stores found words
-    int words = 0; //Number of words found so far
     int score = 0; //Total score, used for board resets
-    int boardNumber = 0; //Which number board we are on
+    int targetScore = 0; //Target score (0 for none)
     
     //Store the ENABLE word list into an array
     ifstream wordList ("enable1.txt");
@@ -70,76 +69,89 @@ int main(int argc, char** argv) {
     else
         cout << "Unable to open file." << endl;
     
-    //Get input and initialize the board state
-    cout << "Board Number?" << endl;
-    cin >> boardNumber;
-    cout << "Input Board State:" << endl;
-    while(!valid){
-        cin >> line;
-        if(line.size()==16)
-            valid=1;
-        if(!valid)
-            cout << "Incorrect Length." << endl;
-    }
-    for(int i=0;i<16;i++)
-        gameBoard[i] = line[i];
-    
-    //Check all ENABLE words, draw them on the board
-    for(int i=0;i<172820;i++){
-        //Variables for word checking
-        line = wordArray[i];
-        found = checkWord(line,gameBoard);
+    //Loop for inputting board states
+    while(1){
+        //Reset variables
+        valid = 0;
         
-        //Variables for automated word entering
-        int xPos[16];
-        int yPos[16];
-        int wordPos, row, col;
-        INPUT input;
-        
-        if(found.startPos!=-1){
-            cout << found.word << endl;
-        
-            //Convert the wordPos to a series of mouse coordinates
-            for(int j=0;j<16;j++){
-                wordPos = found.position[j];
-                row = j/4;
-                col = j%4;
-                if(wordPos!=0){
-                    xPos[found.position[j]-1] = 11050+3600*col;
-                    yPos[found.position[j]-1] = 30500+6450*row;
-                }
-            }
-
-            //Draw the word on the board
-            for(int k=0;k<found.word.size();k++){
-                input.type=INPUT_MOUSE;
-                input.mi.dx=xPos[k];
-                input.mi.dy=yPos[k];
-                if(k==0)
-                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTDOWN);
-                else if(k==found.word.size()-1)
-                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTUP);
-                else
-                    input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE);
-                input.mi.mouseData=0;
-                input.mi.dwExtraInfo=NULL;
-                input.mi.time=0;
-                SendInput(1,&input,sizeof(INPUT));
-                
-                Sleep(50);
-            }
-            
-            //Add the word's score to the tally: Board resets at about 500
-            score = score+getScore(found.word);
+        //Get input and initialize the board state
+        cout << "Target Score? (0 for none)" << endl;
+        cin >> targetScore;
+        cout << "Input Board State:" << endl;
+        while(!valid){
+            cin >> line;
+            if(line.size()==16 || line.size()==1)
+                valid=1;
+            if(!valid)
+                cout << "Incorrect Length." << endl;
         }
         
-        //If the board has reset, stop
-        if(boardNumber==1)
-            if(score>=600)
+        //If user inputted a single character line, end program
+        if(line.size()==1)
+            break;
+        
+        //Otherwise, initialize the board
+        for(int i=0;i<16;i++)
+            gameBoard[i] = line[i];
+
+        //Check all ENABLE words, draw them on the board
+        for(int i=0;i<172820;i++){
+            //Variables for word checking
+            line = wordArray[i];
+            found = checkWord(line,gameBoard);
+
+            //Variables for automated word entering
+            int xPos[16];
+            int yPos[16];
+            int wordPos, row, col;
+            INPUT input;
+
+            if(found.startPos!=-1){
+                cout << found.word << endl;
+
+                //Convert the wordPos to a series of mouse coordinates
+                for(int j=0;j<16;j++){
+                    wordPos = found.position[j];
+                    row = j/4;
+                    col = j%4;
+                    if(wordPos!=0){
+                        xPos[found.position[j]-1] = 11050+3600*col;
+                        yPos[found.position[j]-1] = 30500+6450*row;
+                    }
+                }
+
+                //Draw the word on the board
+                for(int k=0;k<found.word.size();k++){
+                    input.type=INPUT_MOUSE;
+                    input.mi.dx=xPos[k];
+                    input.mi.dy=yPos[k];
+                    if(k==0)
+                        input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTDOWN);
+                    else if(k==found.word.size()-1)
+                        input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE|MOUSEEVENTF_LEFTUP);
+                    else
+                        input.mi.dwFlags=(MOUSEEVENTF_ABSOLUTE|MOUSEEVENTF_MOVE);
+                    input.mi.mouseData=0;
+                    input.mi.dwExtraInfo=NULL;
+                    input.mi.time=0;
+                    SendInput(1,&input,sizeof(INPUT));
+
+                    Sleep(25);
+                }
+
+                //Add the word's score to the tally
+                score = score+getScore(found.word);
+            }
+
+            //If we have reached our target score, stop
+            if(targetScore!=0)
+                if(score>=targetScore)
+                    break;
+
+            //If user presses "q", stop
+            if(GetAsyncKeyState(113) & 0x8000 )
                 break;
-        if(boardNumber==2)
-            if(score>=1800)
-                break;
+        }
     }
     
     return 0;
